@@ -1,0 +1,133 @@
+# .github/workflows/deploy_weather.yml
+name: Generate Weather Data and Deploy Page
+
+on:
+  # 每天 UTC 時間 00:00 (台灣時間 08:00) 執行一次
+  schedule:
+    - cron: '0 0 * * *' 
+  # 允許手動觸發
+  workflow_dispatch:
+
+# 設定權限，允許寫入文件和部署 Pages
+permissions:
+  contents: write 
+  pages: write    
+  id-token: write 
+
+jobs:
+  build-weather-data:
+    runs-on: ubuntu-latest
+    env:
+      # 在這裡設定您想查詢的城市名稱
+      LOCATION_NAME: "臺北市" 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate weather data JSON
+        # 使用 Python 腳本獲取資料並生成 weather_data.json
+        run: |
+          python -c """
+import requests
+import os
+import json
+from datetime import datetime
+
+# 從 GitHub Secrets 中讀取 API Key
+CWA_API_KEY = os.environ.get('CWA_API_KEY')
+API_URL = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001'
+LOCATION_NAME = os.environ.get('LOCATION_NAME')
+
+def get_weather_data(location_name):
+    if not CWA_API_KEY:
+        print('錯誤：CWA_API_KEY 環境變數未設置。請檢查 GitHub Secrets。')
+        return None
+    params = {'Authorization': CWA_API_KEY, 'format': 'JSON', 'locationName': location_name}
+    try:
+        response = requests.get(API_URL, params=params)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f'API 請求失敗: {e}')
+        return None
+
+def format_weather_data_to_json(data):
+    if not data or 'records' not in data or not data['records']['location']:
+        return None
+
+    location_data = data['records']['location'][0]
+    location_name = location_data['locationName']
+    
+    formatted_forecasts = []
+    weather_elements = location_data['weatherElement']
+    
+    forecasts_temp = {}
+    for element in weather_elements:
+        for time_data in element['time']:
+            start_time = time_data['startTime']
+            if start_time not in forecasts_temp:
+                forecasts_temp[start_time] = {}
+            
+            # 填入對應資料
+            element_name = element['elementName']
+            param_name = time_data['parameter']['parameterName']
+            if element_name == 'Wx': forecasts_temp[start_time]['Weather'] = param_name
+            elif element_name == 'PoP': forecasts_temp[start_time]['PoP'] = param_name + '%'
+            elif element_name == 'MinT': forecasts_temp[start_time]['MinT'] = param_name + '°C'
+            elif element_name == 'MaxT': forecasts_temp[start_time]['MaxT'] = param_name + '°C'
+            elif element_name == 'CI': forecasts_temp[start_time]['Comfort'] = param_name
+    
+    for start_time, forecast_data in sorted(forecasts_temp.items()):
+        formatted_forecasts.append({
+            'timeDisplay': datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S').strftime('%m/%d %H時'),
+            **forecast_data
+        })
+    
+    return {
+        'locationName': location_name,
+        'lastUpdated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'forecasts': formatted_forecasts
+    }
+
+weather_data_raw = get_weather_data(LOCATION_NAME)
+weather_data_json = format_weather_data_to_json(weather_data_raw)
+
+if weather_data_json:
+    with open('weather_data.json', 'w', encoding='utf-8') as f:
+        json.dump(weather_data_json, f, ensure_ascii=False, indent=4)
+    print('weather_data.json 檔案生成成功。')
+else:
+    print('無法生成天氣資料 JSON。請檢查 API Key 和地區名稱。')
+    # 如果生成失敗，不阻止後續部署
+          """
+        env:
+          CWA_API_KEY: ${{ secrets.CWA_API_KEY }}
+
+      - name: Commit generated JSON file
+        # 提交更新後的 JSON 檔案到 main/master 分支
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Feat: Update weather_data.json'
+          files: weather_data.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # 將整個倉庫根目錄的內容作為 artifacts 上傳
+          path: './'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
