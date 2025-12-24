@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的美食地圖 🍴</title>
+    <style>
+        :root { --main-color: #f4a261; --bg-color: #fefae0; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; line-height: 1.6; }
+        .header { text-align: center; padding: 40px 0; background: var(--main-color); color: white; border-radius: 15px; margin-bottom: 30px; }
+        .card-container { max-width: 600px; margin: 0 auto; }
+        .food-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; }
+        .food-card:hover { transform: translateY(-5px); }
+        .tag { background: #e76f51; color: white; padding: 2px 8px; border-radius: 5px; font-size: 0.8em; }
+        h2 { margin: 10px 0; color: #264653; }
+        .rating { color: #e9c46a; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🍕 我的美食紀錄本</h1>
+    <p>發現生活中的美味瞬間</p>
+</div>
+
+<div class="card-container">
+    <div class="food-card">
+        <span class="tag">#台北 #拉麵</span>
+        <h2>超濃郁家系拉麵</h2>
+        <p class="rating">⭐⭐⭐⭐⭐</p>
+        <p>這家的叉燒厚實又軟嫩，湯頭鹹度剛好，每次排隊半小時都值得！</p>
+    </div>
+
+    <div class="food-card">
+        <span class="tag">#高雄 #甜點</span>
+        <h2>巷弄老宅肉桂捲</h2>
+        <p class="rating">⭐⭐⭐⭐</p>
+        <p>外皮酥脆、糖霜不會過甜，配上一杯黑咖啡簡直是午後最高享受。</p>
+    </div>
+</div>
+
+</body>
+</html>
